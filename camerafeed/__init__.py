@@ -77,6 +77,8 @@ class CameraFeed:
 
         self.lines = lines
         self.source = config.get('video_source', 'source')
+        if self.source == 'webcam':
+            self.webcam = True
         self.people_options = dict(config.items('person'))
 
         self.go()
@@ -107,6 +109,9 @@ class CameraFeed:
 
             time.sleep(1)  # let camera warm up
 
+        elif self.webcam:
+            self.camera = cv2.VideoCapture(0) #TODO check which webcam
+
         else:
             self.camera = cv2.VideoCapture(self.source)
 
@@ -125,6 +130,15 @@ class CameraFeed:
 
                 if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+        elif self.webcam:
+            while self.camera.isOpened():
+                rval, frame = self.camera.read()
+                self.process(frame)
+                if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            self.camera.release()
+            cv2.destroyAllWindows()
+
         else:
 
             while self.camera.isOpened():
@@ -134,6 +148,8 @@ class CameraFeed:
 
                 if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+            self.camera.releas()
+            cv2.destroyAllWindows()
 
     def process(self, frame):
 
