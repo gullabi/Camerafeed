@@ -63,7 +63,7 @@ class PeopleTracker:
             key = self._rect_key(rect)
             if key not in matches:
                 options = copy.deepcopy(self._people_options)
-                options['name'] = 'Person %d' % self._name_index
+                options['name'] = 'P%d' % self._name_index
                 options['rect'] = rect
                 person = Person(**options)
                 # print('creating %s' % person.name)

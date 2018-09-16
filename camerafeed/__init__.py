@@ -9,7 +9,7 @@ import json
 
 from camerafeed.peopletracker import PeopleTracker
 from camerafeed.tripline import Tripline
-
+from camerafeed.backend import FeedDB
 
 class CameraFeed:
     # frame dimension (calculated below in go)
@@ -34,6 +34,10 @@ class CameraFeed:
 
         # remote host settings
         self.endpoint = config.get('host', 'endpoint', fallback=None)
+
+        # backend settings
+        project_name = 'test'
+        self.backend = FeedDB(project_name)
 
         # platform
         self.pi = config.getboolean('platform', 'pi')
@@ -116,6 +120,9 @@ class CameraFeed:
 
         else:
             self.camera = cv2.VideoCapture(self.source)
+
+        # connect to backend
+        self.backend.connect()
 
         # setup detectors
         self.hog = cv2.HOGDescriptor()
@@ -248,3 +255,5 @@ class CameraFeed:
 
         if not self.to_stdout:
             print("NEW COLLISION %s HEADING %s" % (person.name, person.meta['line-0']))
+
+        self.backend.insert(post)
