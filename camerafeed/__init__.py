@@ -235,13 +235,13 @@ class CameraFeed:
         return frame
 
     def new_collision(self, person):
+        post = {
+            'name': person.name,
+            'meta': json.dumps(person.meta),
+            'time': time.time()
+        }
 
         if self.endpoint is not None:
-            post = {
-                #'name': person.name,
-                'meta': json.dumps(person.meta),
-                'date': time.time()
-            }
 
             request = grequests.post(self.endpoint, data=post)
             grequests.map([request])
