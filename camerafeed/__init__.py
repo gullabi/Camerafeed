@@ -7,6 +7,9 @@ import imutils
 import grequests
 import json
 
+from imutils.video.pivideostream import PiVideoStream
+from imutils.video import FPS
+
 from camerafeed.peopletracker import PeopleTracker
 from camerafeed.tripline import Tripline
 from camerafeed.backend import FeedDB
@@ -19,10 +22,14 @@ class CameraFeed:
     # how many frames processed
     _frame = 0
 
-    def __init__(self, source=0, crop_x1=0, crop_y1=0, crop_x2=500, crop_y2=500, max_width=640, b_and_w=False,
-                 hog_win_stride=6, hog_padding=8, hog_scale=1.05, mog_enabled=False, people_options=None, lines=None,
-                 font=cv2.FONT_HERSHEY_SIMPLEX, endpoint=None, pi=False, show_window=True, to_stdout=False,
-                 save_first_frame=False, quit_after_first_frame=False):
+    def __init__(self, source=0, crop_x1=0, crop_y1=0, crop_x2=500,
+                       crop_y2=500, max_width=640, b_and_w=False,
+                       hog_win_stride=6, hog_padding=8, hog_scale=1.05,
+                       mog_enabled=False, people_options=None, lines=None,
+                       font=cv2.FONT_HERSHEY_SIMPLEX, endpoint=None,
+                       pi=False, show_window=True, to_stdout=False,
+                       save_first_frame=False, quit_after_first_frame=False,
+                       camera_resolution = (640,480), threaded = False):
 
         self.__dict__.update(locals())
 
@@ -45,6 +52,7 @@ class CameraFeed:
         self.show_window = config.getboolean('platform', 'show_window')
         self.save_first_frame = config.getboolean('platform', 'save_first_frame')
         self.quit_after_first_frame = config.getboolean('platform', 'quit_after_first_frame')
+        self.threaded = config.getboolean('platform', 'threaded')
 
         # video source settings
         self.crop_x1 = config.getint('video_source', 'frame_x1')
@@ -104,14 +112,20 @@ class CameraFeed:
         # connect to camera
         if self.pi:
 
-            from picamera.array import PiRGBArray
-            from picamera import PiCamera
+            if self.threaded == False:
+                print('non threading picamera started')
+                from picamera.array import PiRGBArray
+                from picamera import PiCamera
 
-            self.camera = PiCamera()
-            self.camera.resolution = (640, 480)
-            self.camera.framerate = 20
+                self.camera = PiCamera()
+                self.camera.resolution = self.camera_resolution
+                self.camera.framerate = 20
 
-            self.rawCapture = PiRGBArray(self.camera, size=(640, 480))
+                self.rawCapture = PiRGBArray(self.camera, size=self.camera_resolution)
+            # threaded video_stream
+            else:
+                print('threading picamera started')
+                self.vs = PiVideoStream(resolution=self.camera_resolution).start()
 
             time.sleep(1)  # let camera warm up
 
@@ -131,14 +145,23 @@ class CameraFeed:
         # feed in video
         if self.pi:
 
-            for frame in self.camera.capture_continuous(self.rawCapture, format="bgr", use_video_port=True):
+            if self.threaded == False:
+                for frame in self.camera.capture_continuous(self.rawCapture, format="bgr", use_video_port=True):
 
-                image = frame.array
-                self.process(image)
-                self.rawCapture.truncate(0)
-
-                if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                    image = frame.array
+                    self.process(image)
+                    self.rawCapture.truncate(0)
+                    if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                cv2.destroyAllWindows()
+            else:
+                while True:
+                    frame = self.vs.read()
+                    self.process(frame)
+                    if self.quit_after_first_frame or cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                cv2.destroyAllWindows()
+                self.vs.stop()
         elif self.webcam:
             while self.camera.isOpened():
                 rval, frame = self.camera.read()
