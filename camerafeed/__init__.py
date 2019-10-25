@@ -7,9 +7,6 @@ import imutils
 import grequests
 import json
 
-from imutils.video.pivideostream import PiVideoStream
-from imutils.video import FPS
-
 from camerafeed.peopletracker import PeopleTracker
 from camerafeed.tripline import Tripline
 from camerafeed.backend import FeedDB
@@ -29,7 +26,7 @@ class CameraFeed:
                        font=cv2.FONT_HERSHEY_SIMPLEX, endpoint=None,
                        pi=False, show_window=True, to_stdout=False,
                        save_first_frame=False, quit_after_first_frame=False,
-                       camera_resolution = (640,480), threaded = False):
+                       camera_resolution = (1280,720), threaded = False):
 
         self.__dict__.update(locals())
 
@@ -125,12 +122,17 @@ class CameraFeed:
             # threaded video_stream
             else:
                 print('threading picamera started')
-                self.vs = PiVideoStream(resolution=self.camera_resolution).start()
+                from imutils.video.pivideostream import PiVideoStream
+                from imutils.video import FPS
+
+                self.vs = PiVideoStream(resolution=self.camera_resolution,framerate=20).start()
 
             time.sleep(1)  # let camera warm up
 
         elif self.webcam:
             self.camera = cv2.VideoCapture(1) #TODO check which webcam
+            self.camera.set(3, self.camera_resolution[0])
+            self.camera.set(4, self.camera_resolution[1])
 
         else:
             self.camera = cv2.VideoCapture(self.source)
@@ -184,7 +186,6 @@ class CameraFeed:
             cv2.destroyAllWindows()
 
     def process(self, frame):
-
         if self.b_and_w:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -277,6 +278,6 @@ class CameraFeed:
             grequests.map([request])
 
         if not self.to_stdout:
-            print("NEW COLLISION %s HEADING %s" % (person.name, person.meta['line-0']))
+            print("NEW COLLISION %s HEADING %s" % (person.name, str(person.meta)))
 
         self.backend.insert(post)
